@@ -70,6 +70,15 @@ class KMeansSuite extends SparkFunSuite with MLlibTestSparkContext with DefaultR
     assert(kmeans.getTol === 1e-3)
   }
 
+  test("set model parameters") {
+    val kmeansModel = new KMeansModel(null, null)
+      .setFeaturesCol("test_feature")
+      .setPredictionCol("test_prediction")
+
+    assert(kmeansModel.getFeaturesCol === "test_feature")
+    assert(kmeansModel.getPredictionCol === "test_prediction")
+  }
+
   test("parameters validation") {
     intercept[IllegalArgumentException] {
       new KMeans().setK(1)
@@ -115,6 +124,24 @@ class KMeansSuite extends SparkFunSuite with MLlibTestSparkContext with DefaultR
     assert(clusterSizes.length === k)
     assert(clusterSizes.sum === numRows)
     assert(clusterSizes.forall(_ >= 0))
+  }
+
+  test("transform with modified model's parameters") {
+    val newFeaturesColumnName = "kmeans_model_features"
+
+    val oldPredictionColumnName = "kmeans_prediction"
+    val newPredictionColumnName = "kmeans_model_prediction"
+
+    val kmeans = new KMeans().setK(k).setPredictionCol(oldPredictionColumnName).setSeed(1)
+    val model = kmeans.fit(dataset)
+      .setFeaturesCol(newFeaturesColumnName)
+      .setPredictionCol(newPredictionColumnName)
+
+    val transformed = model.transform(dataset.withColumnRenamed("features", newFeaturesColumnName))
+    val expectedColumns = Array(newFeaturesColumnName, newPredictionColumnName)
+    expectedColumns.foreach { column =>
+      assert(transformed.columns.contains(column))
+    }
   }
 
   test("read/write") {
